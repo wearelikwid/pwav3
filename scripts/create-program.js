@@ -39,79 +39,6 @@ function addDay(weekNumber) {
     daysContainer.appendChild(dayElement);
 }
 
-function createDayElement(weekNumber, dayNumber) {
-    const dayDiv = document.createElement('div');
-    dayDiv.className = 'program-day';
-    dayDiv.innerHTML = `
-        <div class='day-header'>
-            <h3>Day ${dayNumber}</h3>
-            <button type='button' class='button secondary remove-day' onclick='removeDay(this)'>×</button>
-        </div>
-        <div class='workout-form'>
-            <div class='form-group'>
-                <label>Workout Name</label>
-                <input type='text' class='workout-name' placeholder='e.g., Upper Body Strength'>
-            </div>
-            <div class='form-group'>
-                <label>Type</label>
-                <select class='workout-type'>
-                    <option value='strength'>Strength</option>
-                    <option value='cardio'>Cardio</option>
-                    <option value='hiit'>HIIT</option>
-                    <option value='flexibility'>Flexibility</option>
-                </select>
-            </div>
-            <div class='workout-sections' id='workout-sections-w${weekNumber}d${dayNumber}'></div>
-            <button type='button' class='button secondary' onclick='addSection(${weekNumber}, ${dayNumber})'>
-                Add Exercise Section
-            </button>
-        </div>
-    `;
-    return dayDiv;
-}
-
-function removeDay(button) {
-    const dayElement = button.closest('.program-day');
-    dayElement.remove();
-}
-
-function addSection(weekNumber, dayNumber) {
-    const sectionsContainer = document.getElementById(`workout-sections-w${weekNumber}d${dayNumber}`);
-    const sectionElement = createSectionElement();
-    sectionsContainer.appendChild(sectionElement);
-}
-
-function createSectionElement() {
-    const sectionDiv = document.createElement('div');
-    sectionDiv.className = 'workout-section';
-    sectionDiv.innerHTML = `
-        <div class='section-header'>
-            <select class='section-type'>
-                <option value='warmup'>Warm-up</option>
-                <option value='main'>Main Workout</option>
-                <option value='cooldown'>Cool-down</option>
-            </select>
-            <button type='button' class='button secondary remove-section' onclick='removeSection(this)'>×</button>
-        </div>
-        <div class='exercises'></div>
-        <button type='button' class='button secondary' onclick='addExercise(this)'>
-            Add Exercise
-        </button>
-    `;
-    return sectionDiv;
-}
-
-function removeSection(button) {
-    const sectionElement = button.closest('.workout-section');
-    sectionElement.remove();
-}
-
-function addExercise(button) {
-    const exercisesContainer = button.previousElementSibling;
-    const exerciseElement = createExerciseElement();
-    exercisesContainer.appendChild(exerciseElement);
-}
-
 function createExerciseElement() {
     const exerciseDiv = document.createElement('div');
     exerciseDiv.className = 'exercise-item';
@@ -134,24 +61,26 @@ function removeExercise(button) {
     exerciseElement.remove();
 }
 
-function handleFormSubmit(event) {
-    event.preventDefault();
-    
-    const programData = {
-        id: Date.now(),
-        name: document.getElementById('program-name').value,
-        duration: parseInt(document.getElementById('program-duration').value),
-        weeks: collectWeeksData(),
-        createdAt: new Date().toISOString()
-    };
+function createDayElement(weekNumber, dayNumber) {
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'day-container';
+    dayDiv.innerHTML = `
+        <div class='day-header'>
+            <h3>Day ${dayNumber}</h3>
+            <button type='button' class='button secondary' onclick='addExercise(this)'>
+                Add Exercise
+            </button>
+        </div>
+        <div class='exercises-list'></div>
+    `;
+    return dayDiv;
+}
 
-    // Save to localStorage
-    const programs = JSON.parse(localStorage.getItem('programs') || '[]');
-    programs.push(programData);
-    localStorage.setItem('programs', JSON.stringify(programs));
-
-    // Redirect to programs list
-    window.location.href = 'program.html';
+function addExercise(button) {
+    const dayContainer = button.closest('.day-container');
+    const exercisesList = dayContainer.querySelector('.exercises-list');
+    const exerciseElement = createExerciseElement();
+    exercisesList.appendChild(exerciseElement);
 }
 
 function collectWeeksData() {
@@ -160,52 +89,64 @@ function collectWeeksData() {
     
     weekElements.forEach((weekElement, weekIndex) => {
         const days = [];
-        const dayElements = weekElement.querySelectorAll('.program-day');
+        const dayElements = weekElement.querySelectorAll('.day-container');
         
         dayElements.forEach((dayElement, dayIndex) => {
+            const exercises = [];
+            const exerciseElements = dayElement.querySelectorAll('.exercise-item');
+            
+            exerciseElements.forEach(exerciseElement => {
+                exercises.push({
+                    name: exerciseElement.querySelector('.exercise-name').value,
+                    sets: parseInt(exerciseElement.querySelector('.exercise-sets').value) || 0,
+                    reps: parseInt(exerciseElement.querySelector('.exercise-reps').value) || 0,
+                    notes: exerciseElement.querySelector('.exercise-notes').value
+                });
+            });
+            
             days.push({
                 dayNumber: dayIndex + 1,
-                workoutName: dayElement.querySelector('.workout-name').value,
-                workoutType: dayElement.querySelector('.workout-type').value,
-                sections: collectSectionsData(dayElement)
+                exercises: exercises
             });
         });
-
+        
         weeks.push({
             weekNumber: weekIndex + 1,
             days: days
         });
     });
-
+    
     return weeks;
 }
 
-function collectSectionsData(dayElement) {
-    const sections = [];
-    const sectionElements = dayElement.querySelectorAll('.workout-section');
+async function handleFormSubmit(event) {
+    event.preventDefault();
     
-    sectionElements.forEach(sectionElement => {
-        sections.push({
-            type: sectionElement.querySelector('.section-type').value,
-            exercises: collectExercisesData(sectionElement)
-        });
-    });
+    // Check if user is logged in
+    const user = firebase.auth().currentUser;
+    if (!user) {
+        alert('Please sign in to create a program');
+        window.location.href = 'auth.html';
+        return;
+    }
 
-    return sections;
-}
+    const programData = {
+        name: document.getElementById('program-name').value,
+        duration: parseInt(document.getElementById('program-duration').value),
+        weeks: collectWeeksData(),
+        userId: user.uid,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
 
-function collectExercisesData(sectionElement) {
-    const exercises = [];
-    const exerciseElements = sectionElement.querySelectorAll('.exercise-item');
-    
-    exerciseElements.forEach(exerciseElement => {
-        exercises.push({
-            name: exerciseElement.querySelector('.exercise-name').value,
-            sets: parseInt(exerciseElement.querySelector('.exercise-sets').value) || 0,
-            reps: parseInt(exerciseElement.querySelector('.exercise-reps').value) || 0,
-            notes: exerciseElement.querySelector('.exercise-notes').value
-        });
-    });
+    try {
+        // Save to Firestore
+        await firebase.firestore()
+            .collection('programs')
+            .add(programData);
 
-    return exercises;
+        // Redirect to programs list
+        window.location.href = 'program.html';
+    } catch (error) {
+        alert('Error creating program: ' + error.message);
+    }
 }
