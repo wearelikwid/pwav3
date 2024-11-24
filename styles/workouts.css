@@ -1,0 +1,128 @@
+/* Root variables */
+:root {
+    --success-color: #4CAF50;
+}
+
+/* Workouts page layout */
+.section {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+/* Grid layout for workout cards */
+.workouts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+    padding: 16px 0;
+}
+
+/* Workout card styling */
+.workout-card {
+    position: relative;
+    background: var(--card-background);
+    border-radius: 12px;
+    padding: 24px;
+    transition: transform 0.2s ease, border-color 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.workout-card:hover {
+    transform: translateY(-4px);
+}
+
+.workout-card.completed {
+    border-color: var(--success-color);
+}
+
+.workout-card.completed::before {
+    content: '✓';
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    color: var(--success-color);
+    font-size: 1.2rem;
+}
+
+.workout-card h3 {
+    margin: 0 0 12px 0;
+    color: var(--text-color);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.workout-meta {
+    font-size: 0.9rem;
+    color: var(--secondary-text);
+    margin-bottom: 16px;
+}
+
+.workout-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+/* Button styling */
+.button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.button:hover {
+    opacity: 0.9;
+}
+
+.button.primary {
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    color: var(--text-color);
+}
+
+/* Empty state styling */
+.empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--secondary-text);
+}
+
+.empty-state p {
+    margin-bottom: 24px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .section {
+        padding: 16px;
+    }
+
+    .section-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .section-header .button {
+        width: 100%;
+        text-align: center;
+    }
+
+    .workouts-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}
