@@ -63,11 +63,21 @@
     font-size: 0.9rem;
     color: var(--secondary-text);
     margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.completion-status {
+    color: var(--success-color);
+    margin-left: 8px;
+    font-size: 0.9rem;
 }
 
 .workout-actions {
     display: flex;
-    gap: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
     margin-top: 16px;
 }
 
@@ -90,6 +100,16 @@
 .button.primary {
     background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
     color: var(--text-color);
+}
+
+.button.secondary {
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+.button.secondary:hover {
+    background: rgba(var(--primary-color-rgb), 0.1);
 }
 
 /* Empty state styling */
@@ -124,5 +144,13 @@
     .workouts-grid {
         grid-template-columns: 1fr;
         gap: 16px;
+    }
+
+    .workout-actions {
+        flex-direction: column;
+    }
+
+    .button {
+        width: 100%;
     }
 }
