@@ -1,6 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
-    initializeForm();
-    addSection(); // Add initial section
+    // Check authentication
+    firebase.auth().onAuthStateChanged(function(user) {
+        if (!user) {
+            window.location.href = 'auth.html';
+            return;
+        }
+        initializeForm();
+        addSection(); // Add initial section
+    });
 });
 
 function initializeForm() {
@@ -12,7 +19,7 @@ function addSection() {
     const sectionsContainer = document.getElementById('workout-sections');
     const sectionTemplate = document.getElementById('section-template');
     const sectionElement = document.importNode(sectionTemplate.content, true);
-    
+
     // Add event listeners
     const removeButton = sectionElement.querySelector('.remove-section');
     removeButton.addEventListener('click', function(e) {
@@ -36,7 +43,7 @@ function addSection() {
 function addExerciseToSection(exercisesList) {
     const exerciseTemplate = document.getElementById('exercise-template');
     const exerciseElement = document.importNode(exerciseTemplate.content, true);
-    
+
     const removeButton = exerciseElement.querySelector('.remove-exercise');
     removeButton.addEventListener('click', function(e) {
         e.target.closest('.exercise-item').remove();
@@ -45,15 +52,17 @@ function addExerciseToSection(exercisesList) {
     exercisesList.appendChild(exerciseElement);
 }
 
-function handleFormSubmit(event) {
+async function handleFormSubmit(event) {
     event.preventDefault();
-    
+
     try {
         const workoutData = {
             name: document.getElementById('workout-name').value,
             type: document.getElementById('workout-type').value,
             sections: getSectionsData(),
-            createdAt: new Date().toISOString()
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            userId: firebase.auth().currentUser.uid,
+            completed: false
         };
 
         if (!workoutData.name || !workoutData.type) {
@@ -61,7 +70,7 @@ function handleFormSubmit(event) {
             return;
         }
 
-        saveWorkout(workoutData);
+        await saveWorkout(workoutData);
         window.location.href = 'workouts.html';
     } catch (error) {
         console.error('Error saving workout:', error);
@@ -109,13 +118,19 @@ function getExercisesDataForSection(sectionElement) {
     return exercises;
 }
 
-function saveWorkout(workoutData) {
+async function saveWorkout(workoutData) {
+    const user = firebase.auth().currentUser;
+    
+    if (!user) {
+        throw new Error('User must be logged in to save workouts');
+    }
+
     try {
-        let workouts = JSON.parse(localStorage.getItem('workouts') || '[]');
-        workouts.push(workoutData);
-        localStorage.setItem('workouts', JSON.stringify(workouts));
+        await firebase.firestore()
+            .collection('workouts')
+            .add(workoutData);
     } catch (error) {
-        console.error('Error saving to localStorage:', error);
+        console.error('Error saving to Firestore:', error);
         throw new Error('Failed to save workout');
     }
 }
