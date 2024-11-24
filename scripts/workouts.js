@@ -12,13 +12,12 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadWorkouts(userId) {
     // Reference to Firestore collection
     const workoutsRef = firebase.firestore().collection('workouts');
-    
-    // Query workouts for current user
+
+    // Use onSnapshot for real-time updates
     workoutsRef
         .where('userId', '==', userId)
         .orderBy('createdAt', 'desc')
-        .get()
-        .then((querySnapshot) => {
+        .onSnapshot((querySnapshot) => {
             const workouts = [];
             querySnapshot.forEach((doc) => {
                 workouts.push({
@@ -27,8 +26,7 @@ function loadWorkouts(userId) {
                 });
             });
             displayWorkouts(workouts);
-        })
-        .catch((error) => {
+        }, (error) => {
             console.error('Error loading workouts:', error);
             displayWorkouts([]);
         });
@@ -70,11 +68,16 @@ function createWorkoutCard(workout) {
         <h3>${workout.name}</h3>
         <div class='workout-meta'>
             <span>${workout.type}</span>
+            ${workout.completed ? '<span class="completion-status">✓ Completed</span>' : ''}
         </div>
         <div class='workout-actions'>
             <button class='button primary' onclick='startWorkout("${workout.id}")'>
                 ${workout.completed ? 'Repeat Workout' : 'Start Workout'}
             </button>
+            ${workout.completed ? 
+                `<button class='button secondary' onclick='markWorkoutIncomplete("${workout.id}")'>Mark Incomplete</button>` : 
+                `<button class='button secondary' onclick='markWorkoutComplete("${workout.id}")'>Mark Complete</button>`
+            }
         </div>
     `;
 
@@ -82,7 +85,6 @@ function createWorkoutCard(workout) {
 }
 
 function startWorkout(workoutId) {
-    // Get the workout from Firestore
     firebase.firestore()
         .collection('workouts')
         .doc(workoutId)
@@ -93,7 +95,6 @@ function startWorkout(workoutId) {
                     id: doc.id,
                     ...doc.data()
                 };
-                // Store current workout in localStorage for the workout session
                 localStorage.setItem('currentWorkout', JSON.stringify(workout));
                 window.location.href = 'start-workout.html';
             } else {
@@ -102,5 +103,31 @@ function startWorkout(workoutId) {
         })
         .catch((error) => {
             console.error('Error starting workout:', error);
+        });
+}
+
+function markWorkoutComplete(workoutId) {
+    firebase.firestore()
+        .collection('workouts')
+        .doc(workoutId)
+        .update({
+            completed: true,
+            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+        })
+        .catch((error) => {
+            console.error('Error marking workout complete:', error);
+        });
+}
+
+function markWorkoutIncomplete(workoutId) {
+    firebase.firestore()
+        .collection('workouts')
+        .doc(workoutId)
+        .update({
+            completed: false,
+            completedAt: null
+        })
+        .catch((error) => {
+            console.error('Error marking workout incomplete:', error);
         });
 }
