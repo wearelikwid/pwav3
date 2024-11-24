@@ -1,18 +1,19 @@
 document.addEventListener('DOMContentLoaded', function() {
-    displayPrograms();
+    // Check authentication
+    firebase.auth().onAuthStateChanged((user) => {
+        if (!user) {
+            window.location.href = 'auth.html';
+            return;
+        }
+        displayPrograms();
+    });
 });
 
 async function displayPrograms() {
     const programsList = document.getElementById('programs-list');
     const user = firebase.auth().currentUser;
 
-    if (!user) {
-        window.location.href = 'auth.html';
-        return;
-    }
-
     try {
-        // Get programs from Firestore
         const snapshot = await firebase.firestore()
             .collection('programs')
             .where('userId', '==', user.uid)
@@ -24,25 +25,42 @@ async function displayPrograms() {
             return;
         }
 
-        programsList.innerHTML = snapshot.docs.map(doc => {
+        programsList.innerHTML = '';
+        snapshot.forEach(doc => {
             const program = doc.data();
-            return `
-                <div class="program-card" data-program-id="${doc.id}">
-                    <div class="program-info">
-                        <h2>${program.name}</h2>
-                        <p>${program.duration} weeks</p>
-                    </div>
-                    <div class="program-actions">
-                        <button onclick="editProgram('${doc.id}')" class="button secondary">Edit</button>
-                        <button onclick="deleteProgram('${doc.id}')" class="button secondary">Delete</button>
-                    </div>
+            const programCard = document.createElement('div');
+            programCard.className = 'program-card';
+            programCard.innerHTML = `
+                <div class="program-info">
+                    <h2>${program.name}</h2>
+                    <p>${program.duration} weeks</p>
+                </div>
+                <div class="program-actions">
+                    <button onclick="viewProgram('${doc.id}')" class="button secondary">View</button>
+                    <button onclick="editProgram('${doc.id}')" class="button secondary">Edit</button>
+                    <button onclick="deleteProgram('${doc.id}')" class="button secondary">Delete</button>
                 </div>
             `;
-        }).join('');
+            programsList.appendChild(programCard);
+        });
     } catch (error) {
-        console.error('Error fetching programs:', error);
-        programsList.innerHTML = '<p class="error">Error loading programs</p>';
+        console.error("Error getting programs: ", error);
+        programsList.innerHTML = '<p class="error">Error loading programs. Please try again.</p>';
     }
+}
+
+function viewProgram(programId) {
+    // Store the program ID to view in localStorage
+    localStorage.setItem('viewProgramId', programId);
+    // Redirect to the view page
+    window.location.href = 'view-program.html';
+}
+
+function editProgram(programId) {
+    // Store the program ID to edit in localStorage
+    localStorage.setItem('editProgramId', programId);
+    // Redirect to the edit page
+    window.location.href = 'edit-program.html';
 }
 
 async function deleteProgram(programId) {
@@ -53,14 +71,11 @@ async function deleteProgram(programId) {
                 .doc(programId)
                 .delete();
             
+            alert('Program deleted successfully');
             displayPrograms(); // Refresh the display
         } catch (error) {
-            alert('Error deleting program: ' + error.message);
+            console.error("Error deleting program: ", error);
+            alert('Error deleting program. Please try again.');
         }
     }
-}
-
-function editProgram(programId) {
-    localStorage.setItem('editProgramId', programId);
-    window.location.href = 'edit-program.html';
 }
