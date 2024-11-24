@@ -1,11 +1,37 @@
 document.addEventListener('DOMContentLoaded', function() {
-    loadWorkouts();
+    // Check if user is logged in
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+            loadWorkouts(user.uid);
+        } else {
+            window.location.href = 'auth.html';
+        }
+    });
 });
 
-function loadWorkouts() {
-    // Load workouts from localStorage
-    const workouts = JSON.parse(localStorage.getItem('workouts') || '[]');
-    displayWorkouts(workouts);
+function loadWorkouts(userId) {
+    // Reference to Firestore collection
+    const workoutsRef = firebase.firestore().collection('workouts');
+    
+    // Query workouts for current user
+    workoutsRef
+        .where('userId', '==', userId)
+        .orderBy('createdAt', 'desc')
+        .get()
+        .then((querySnapshot) => {
+            const workouts = [];
+            querySnapshot.forEach((doc) => {
+                workouts.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
+            });
+            displayWorkouts(workouts);
+        })
+        .catch((error) => {
+            console.error('Error loading workouts:', error);
+            displayWorkouts([]);
+        });
 }
 
 function displayWorkouts(workouts) {
@@ -31,15 +57,14 @@ function displayWorkouts(workouts) {
 function createWorkoutCard(workout) {
     const card = document.createElement('div');
     card.className = 'workout-card';
-    
+
     // Add completed class if workout is completed
     if (workout.completed) {
         card.classList.add('completed');
     }
 
-    // Create a data attribute to store the workout ID
-    const workoutId = workout.createdAt;
-    card.setAttribute('data-workout-id', workoutId);
+    // Use Firestore document ID as workout ID
+    card.setAttribute('data-workout-id', workout.id);
 
     card.innerHTML = `
         <h3>${workout.name}</h3>
@@ -47,7 +72,7 @@ function createWorkoutCard(workout) {
             <span>${workout.type}</span>
         </div>
         <div class='workout-actions'>
-            <button class='button primary' onclick='startWorkout("${workoutId}")'>
+            <button class='button primary' onclick='startWorkout("${workout.id}")'>
                 ${workout.completed ? 'Repeat Workout' : 'Start Workout'}
             </button>
         </div>
@@ -57,12 +82,25 @@ function createWorkoutCard(workout) {
 }
 
 function startWorkout(workoutId) {
-    // Get all workouts and find the matching one
-    const workouts = JSON.parse(localStorage.getItem('workouts') || '[]');
-    const workout = workouts.find(w => w.createdAt === workoutId);
-
-    if (workout) {
-        localStorage.setItem('currentWorkout', JSON.stringify(workout));
-        window.location.href = 'start-workout.html';
-    }
+    // Get the workout from Firestore
+    firebase.firestore()
+        .collection('workouts')
+        .doc(workoutId)
+        .get()
+        .then((doc) => {
+            if (doc.exists) {
+                const workout = {
+                    id: doc.id,
+                    ...doc.data()
+                };
+                // Store current workout in localStorage for the workout session
+                localStorage.setItem('currentWorkout', JSON.stringify(workout));
+                window.location.href = 'start-workout.html';
+            } else {
+                console.error('Workout not found');
+            }
+        })
+        .catch((error) => {
+            console.error('Error starting workout:', error);
+        });
 }
