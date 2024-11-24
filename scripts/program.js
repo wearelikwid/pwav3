@@ -1,22 +1,25 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Check authentication
-    firebase.auth().onAuthStateChanged((user) => {
-        if (!user) {
-            window.location.href = 'auth.html';
-            return;
-        }
-        displayPrograms();
-    });
+    displayPrograms();
 });
 
-async function displayPrograms() {
-    const programsList = document.getElementById('programs-list');
-    const user = firebase.auth().currentUser;
+function displayPrograms() {
+    // Get the current user
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+            loadUserPrograms(user.uid);
+        } else {
+            window.location.href = 'auth.html';
+        }
+    });
+}
 
+async function loadUserPrograms(userId) {
+    const programsList = document.getElementById('programs-list');
+    
     try {
         const snapshot = await firebase.firestore()
             .collection('programs')
-            .where('userId', '==', user.uid)
+            .where('userId', '==', userId)
             .orderBy('createdAt', 'desc')
             .get();
 
@@ -26,40 +29,32 @@ async function displayPrograms() {
         }
 
         programsList.innerHTML = '';
+        
         snapshot.forEach(doc => {
             const program = doc.data();
-            const programCard = document.createElement('div');
-            programCard.className = 'program-card';
-            programCard.innerHTML = `
-                <div class="program-info">
-                    <h2>${program.name}</h2>
-                    <p>${program.duration} weeks</p>
-                </div>
-                <div class="program-actions">
-                    <button onclick="viewProgram('${doc.id}')" class="button secondary">View</button>
-                    <button onclick="editProgram('${doc.id}')" class="button secondary">Edit</button>
-                    <button onclick="deleteProgram('${doc.id}')" class="button secondary">Delete</button>
+            const programCard = `
+                <div class="program-card" data-program-id="${doc.id}">
+                    <div class="program-info">
+                        <h2>${program.name}</h2>
+                        <p>${program.duration} weeks</p>
+                    </div>
+                    <div class="program-actions">
+                        <button onclick="editProgram('${doc.id}')" class="button secondary">Edit</button>
+                        <button onclick="deleteProgram('${doc.id}')" class="button secondary">Delete</button>
+                    </div>
                 </div>
             `;
-            programsList.appendChild(programCard);
+            programsList.innerHTML += programCard;
         });
     } catch (error) {
-        console.error("Error getting programs: ", error);
-        programsList.innerHTML = '<p class="error">Error loading programs. Please try again.</p>';
+        console.error("Error loading programs:", error);
+        programsList.innerHTML = '<p class="no-programs">Error loading programs. Please try again.</p>';
     }
 }
 
-function viewProgram(programId) {
-    // Store the program ID to view in localStorage
-    localStorage.setItem('viewProgramId', programId);
-    // Redirect to the view page
-    window.location.href = 'view-program.html';
-}
-
 function editProgram(programId) {
-    // Store the program ID to edit in localStorage
+    // Store the program ID for editing
     localStorage.setItem('editProgramId', programId);
-    // Redirect to the edit page
     window.location.href = 'edit-program.html';
 }
 
@@ -71,10 +66,13 @@ async function deleteProgram(programId) {
                 .doc(programId)
                 .delete();
             
-            alert('Program deleted successfully');
-            displayPrograms(); // Refresh the display
+            // Refresh the programs list
+            const user = firebase.auth().currentUser;
+            if (user) {
+                loadUserPrograms(user.uid);
+            }
         } catch (error) {
-            console.error("Error deleting program: ", error);
+            console.error("Error deleting program:", error);
             alert('Error deleting program. Please try again.');
         }
     }
