@@ -1,117 +1,208 @@
-// Check if user is logged in when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    firebase.auth().onAuthStateChanged(function(user) {
-        if (!user) {
-            window.location.href = 'auth.html';
-            return;
-        }
-        
-        // Check if we're editing an existing workout
-        const urlParams = new URLSearchParams(window.location.search);
-        const workoutId = urlParams.get('id');
-        if (workoutId) {
-            loadWorkoutForEditing(workoutId);
-        }
+// Helper Functions - Defined First
+function addSection(sectionData = null) {
+    const template = document.getElementById('section-template');
+    const section = template.content.cloneNode(true);
+    const sectionsContainer = document.getElementById('workout-sections');
+    
+    if (sectionData) {
+        section.querySelector('.section-type').value = sectionData.type;
+        sectionData.exercises.forEach(exercise => addExercise(section.querySelector('.exercises-list'), exercise));
+    }
+
+    sectionsContainer.appendChild(section);
+    initializeSectionListeners(sectionsContainer.lastElementChild);
+}
+
+function addExercise(container, exerciseData = null) {
+    const template = document.getElementById('exercise-template');
+    const exercise = template.content.cloneNode(true);
+    
+    if (exerciseData) {
+        exercise.querySelector('.exercise-name').value = exerciseData.name || '';
+        exercise.querySelector('.exercise-rounds').value = exerciseData.rounds || '';
+        exercise.querySelector('.exercise-reps').value = exerciseData.reps || '';
+        exercise.querySelector('.exercise-notes').value = exerciseData.notes || '';
+    }
+
+    container.appendChild(exercise);
+    initializeExerciseListeners(container.lastElementChild);
+}
+
+function initializeSectionListeners(section) {
+    section.querySelector('.add-exercise').addEventListener('click', () => {
+        addExercise(section.querySelector('.exercises-list'));
     });
 
-    // Set up form submission handler
-    const form = document.getElementById('create-workout-form');
-    if (form) {
-        form.addEventListener('submit', handleFormSubmit);
+    section.querySelector('.remove-section').addEventListener('click', () => {
+        section.remove();
+    });
+}
+
+function initializeExerciseListeners(exercise) {
+    exercise.querySelector('.remove-exercise').addEventListener('click', () => {
+        exercise.remove();
+    });
+}
+
+function showLoadingIndicator() {
+    document.getElementById('loading-indicator').style.display = 'flex';
+}
+
+function hideLoadingIndicator() {
+    document.getElementById('loading-indicator').style.display = 'none';
+}
+
+function showError(message) {
+    const errorElement = document.getElementById('error-message');
+    errorElement.textContent = message;
+    errorElement.style.display = 'block';
+    setTimeout(() => {
+        errorElement.style.display = 'none';
+    }, 3000);
+}
+
+// Make addSection globally available
+window.addSection = addSection;
+
+// Initialize Firebase Auth listener
+firebase.auth().onAuthStateChanged((user) => {
+    if (!user) {
+        window.location.href = 'auth.html';
+        return;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const workoutId = urlParams.get('id');
+    const isEdit = urlParams.get('edit') === 'true';
+
+    if (isEdit && workoutId) {
+        document.getElementById('page-title').textContent = 'Edit Workout';
+        document.getElementById('workout-id').value = workoutId;
+        loadWorkoutData(workoutId);
+    } else {
+        addSection(); // Add one empty section for new workout
     }
 });
 
-// Handle form submission
+// Form initialization
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('create-workout-form');
+    form.addEventListener('submit', handleFormSubmit);
+});
+
 async function handleFormSubmit(event) {
     event.preventDefault();
-
+    
     try {
         const user = firebase.auth().currentUser;
         if (!user) {
-            window.location.href = 'auth.html';
+            alert('Please sign in to save the workout');
             return;
         }
 
-        // Get basic workout data
+        showLoadingIndicator();
+        
         const workoutData = {
             name: document.getElementById('workout-name').value.trim(),
             type: document.getElementById('workout-type').value.trim(),
+            sections: getSectionsData(),
             userId: user.uid,
-            completed: false
+            completed: false,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        // Validate required fields
         if (!workoutData.name || !workoutData.type) {
             alert('Please fill in workout name and type');
+            hideLoadingIndicator();
             return;
         }
 
-        const form = event.target;
-        const workoutId = form.getAttribute('data-workout-id');
+        const workoutId = document.getElementById('workout-id').value;
 
         if (workoutId) {
             await updateWorkout(workoutId, workoutData);
         } else {
+            workoutData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await saveWorkout(workoutData);
         }
 
-        // Redirect back to workouts page
         window.location.href = 'workouts.html';
     } catch (error) {
         console.error('Error saving workout:', error);
-        alert('Error saving workout. Please try again.');
+        showError('Error saving workout. Please try again.');
+    } finally {
+        hideLoadingIndicator();
     }
 }
 
-// Save new workout
+function getSectionsData() {
+    const sections = document.querySelectorAll('.workout-section');
+    return Array.from(sections).map(section => ({
+        type: section.querySelector('.section-type').value,
+        exercises: Array.from(section.querySelectorAll('.exercise-item')).map(exercise => ({
+            name: exercise.querySelector('.exercise-name').value.trim(),
+            rounds: exercise.querySelector('.exercise-rounds')?.value || '',
+            reps: exercise.querySelector('.exercise-reps')?.value || '',
+            notes: exercise.querySelector('.exercise-notes')?.value?.trim() || ''
+        }))
+    }));
+}
+
 async function saveWorkout(workoutData) {
-    return firebase.firestore()
-        .collection('workouts')
-        .add({
-            ...workoutData,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-}
-
-// Update existing workout
-async function updateWorkout(workoutId, workoutData) {
-    return firebase.firestore()
-        .collection('workouts')
-        .doc(workoutId)
-        .update({
-            ...workoutData,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-}
-
-// Load workout data for editing
-async function loadWorkoutForEditing(workoutId) {
     try {
+        await firebase.firestore()
+            .collection('workouts')
+            .add(workoutData);
+    } catch (error) {
+        console.error('Error saving workout:', error);
+        throw error;
+    }
+}
+
+async function updateWorkout(workoutId, workoutData) {
+    try {
+        await firebase.firestore()
+            .collection('workouts')
+            .doc(workoutId)
+            .update(workoutData);
+    } catch (error) {
+        console.error('Error updating workout:', error);
+        throw error;
+    }
+}
+
+async function loadWorkoutData(workoutId) {
+    try {
+        showLoadingIndicator();
         const doc = await firebase.firestore()
             .collection('workouts')
             .doc(workoutId)
             .get();
 
-        if (doc.exists) {
-            const workout = doc.data();
-            
-            // Fill form with workout data
-            document.getElementById('workout-name').value = workout.name || '';
-            document.getElementById('workout-type').value = workout.type || '';
-            
-            // Update form for edit mode
-            const form = document.getElementById('create-workout-form');
-            const submitButton = form.querySelector('button[type="submit"]');
-            if (submitButton) {
-                submitButton.textContent = 'Update Workout';
-            }
-            form.setAttribute('data-workout-id', workoutId);
+        if (!doc.exists) {
+            showError('Workout not found');
+            return;
+        }
+
+        const workout = doc.data();
+        
+        document.getElementById('workout-name').value = workout.name || '';
+        document.getElementById('workout-type').value = workout.type || '';
+
+        const sectionsContainer = document.getElementById('workout-sections');
+        sectionsContainer.innerHTML = '';
+
+        if (workout.sections && workout.sections.length > 0) {
+            workout.sections.forEach(section => {
+                addSection(section);
+            });
         } else {
-            throw new Error('Workout not found');
+            addSection();
         }
     } catch (error) {
         console.error('Error loading workout:', error);
-        alert('Error loading workout data. Please try again.');
+        showError('Error loading workout data');
+    } finally {
+        hideLoadingIndicator();
     }
 }
