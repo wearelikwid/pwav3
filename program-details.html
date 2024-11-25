@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>El Forma - Program Details</title>
+    <title>Program Details - El Forma</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/program-details.css">
 </head>
@@ -11,36 +11,39 @@
     <div class="container">
         <header class="app-header">
             <a href="program.html" class="back-button">←</a>
-            <h1 id="program-name">Program Details</h1>
+            <h1>Program Details</h1>
         </header>
 
         <main>
-            <div class="program-overview">
+            <div id="program-details" class="program-overview">
                 <div class="program-stats">
                     <div class="stat">
-                        <span class="stat-label">Duration</span>
-                        <span id="program-duration" class="stat-value">0 weeks</span>
+                        <span class="stat-label">Program Name</span>
+                        <span id="programName" class="stat-value"></span>
                     </div>
                     <div class="stat">
-                        <span class="stat-label">Status</span>
-                        <span id="program-status" class="stat-value">Not Started</span>
+                        <span class="stat-label">Duration</span>
+                        <span id="programDuration" class="stat-value"></span>
                     </div>
                 </div>
-                
-                <div id="program-weeks" class="program-weeks">
-                    <!-- Weeks will be populated dynamically -->
-                </div>
-            </div>
 
-            <div class="program-actions">
-                <button id="start-program" class="button primary">Start Program</button>
+                <div id="programWeeks" class="program-weeks">
+                    <!-- Weeks will be populated here -->
+                </div>
+
+                <div class="program-actions">
+                    <button id="startProgram" class="button primary">Start Program</button>
+                </div>
             </div>
         </main>
     </div>
 
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <!-- Your Firebase Config -->
     <script src="scripts/firebase-config.js"></script>
     <script src="scripts/program-details.js"></script>
 </body>
