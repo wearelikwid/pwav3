@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function displayPrograms() {
-    // Get the current user
     firebase.auth().onAuthStateChanged((user) => {
         if (user) {
             loadUserPrograms(user.uid);
@@ -15,7 +14,7 @@ function displayPrograms() {
 
 async function loadUserPrograms(userId) {
     const programsList = document.getElementById('programs-list');
-    
+
     try {
         const snapshot = await firebase.firestore()
             .collection('programs')
@@ -29,7 +28,7 @@ async function loadUserPrograms(userId) {
         }
 
         programsList.innerHTML = '';
-        
+
         snapshot.forEach(doc => {
             const program = doc.data();
             const programCard = `
@@ -39,6 +38,7 @@ async function loadUserPrograms(userId) {
                         <p>${program.duration} weeks</p>
                     </div>
                     <div class="program-actions">
+                        <button onclick="viewProgramDetails('${doc.id}')" class="button secondary">View</button>
                         <button onclick="editProgram('${doc.id}')" class="button secondary">Edit</button>
                         <button onclick="deleteProgram('${doc.id}')" class="button secondary">Delete</button>
                     </div>
@@ -52,10 +52,12 @@ async function loadUserPrograms(userId) {
     }
 }
 
+function viewProgramDetails(programId) {
+    window.location.href = `program-details.html?id=${programId}`;
+}
+
 function editProgram(programId) {
-    // Store the program ID for editing
-    localStorage.setItem('editProgramId', programId);
-    window.location.href = 'edit-program.html';
+    window.location.href = `edit-program.html?id=${programId}`;
 }
 
 async function deleteProgram(programId) {
@@ -65,7 +67,7 @@ async function deleteProgram(programId) {
                 .collection('programs')
                 .doc(programId)
                 .delete();
-            
+
             // Refresh the programs list
             const user = firebase.auth().currentUser;
             if (user) {
