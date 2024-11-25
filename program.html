@@ -30,6 +30,27 @@
             <div class="actions">
                 <a href="create-program.html" class="button primary">Create New Program</a>
             </div>
+
+            <!-- Program Details Modal -->
+            <div id="program-details-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="modal-program-name"></h2>
+                        <span class="close-modal">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="program-info">
+                            <p>Duration: <span id="modal-program-duration"></span></p>
+                            <p>Status: <span id="modal-program-status"></span></p>
+                        </div>
+                        <div class="modal-actions">
+                            <button id="view-program" class="button">View Details</button>
+                            <button id="edit-program" class="button">Edit Program</button>
+                            <button id="delete-program" class="button danger">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
