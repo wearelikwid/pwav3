@@ -1,6 +1,7 @@
 /* Root variables */
 :root {
     --success-color: #4CAF50;
+    --danger-color: #ff4444;
 }
 
 /* Workouts page layout */
@@ -91,6 +92,8 @@
     transition: all 0.3s ease;
     text-decoration: none;
     display: inline-block;
+    text-align: center;
+    min-width: 120px;
 }
 
 .button:hover {
@@ -100,16 +103,32 @@
 .button.primary {
     background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
     color: var(--text-color);
+    flex: 2;
 }
 
 .button.secondary {
     background: transparent;
     border: 1px solid var(--primary-color);
     color: var(--primary-color);
+    flex: 1;
 }
 
 .button.secondary:hover {
     background: rgba(var(--primary-color-rgb), 0.1);
+}
+
+.button.delete-btn {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
+.button.delete-btn:hover {
+    background: rgba(255, 68, 68, 0.1);
+}
+
+.button.edit-btn {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
 }
 
 /* Empty state styling */
@@ -152,5 +171,9 @@
 
     .button {
         width: 100%;
+    }
+
+    .workout-card {
+        padding: 20px;
     }
 }
