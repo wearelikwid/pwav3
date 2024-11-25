@@ -28,7 +28,7 @@ function displaySections(sections) {
 function createSectionElement(section, sectionNumber) {
     const sectionTemplate = document.getElementById('section-template');
     const sectionElement = document.importNode(sectionTemplate.content, true);
-    
+
     const titleElement = sectionElement.querySelector('.section-title');
     titleElement.textContent = `${section.type} ${sectionNumber}`;
 
@@ -44,9 +44,9 @@ function createSectionElement(section, sectionNumber) {
 function createExerciseElement(exercise) {
     const exerciseTemplate = document.getElementById('exercise-template');
     const exerciseElement = document.importNode(exerciseTemplate.content, true);
-    
+
     exerciseElement.querySelector('.exercise-name').textContent = exercise.name;
-    
+
     const notesElement = exerciseElement.querySelector('.exercise-notes');
     if (exercise.notes) {
         notesElement.textContent = exercise.notes;
@@ -56,7 +56,7 @@ function createExerciseElement(exercise) {
 
     const repsElement = exerciseElement.querySelector('.reps');
     const roundsElement = exerciseElement.querySelector('.rounds');
-    
+
     repsElement.textContent = exercise.reps ? `${exercise.reps} reps` : '';
     roundsElement.textContent = exercise.rounds ? `${exercise.rounds} rounds` : '';
 
@@ -79,27 +79,24 @@ function markWorkoutComplete() {
     completeButton.classList.add('completed');
     completeButton.textContent = 'Workout Completed!';
 
-    // Get all workouts
-    let workouts = JSON.parse(localStorage.getItem('workouts') || '[]');
-    
-    // Find and update the completed workout
-    workouts = workouts.map(workout => {
-        if (workout.name === currentWorkout.name && 
-            workout.createdAt === currentWorkout.createdAt) {
-            return {
-                ...workout,
-                completed: true,
-                completedAt: new Date().toISOString()
-            };
-        }
-        return workout;
-    });
-
-    // Save updated workouts
-    localStorage.setItem('workouts', JSON.stringify(workouts));
-    
-    // Delay redirect to show completion state
-    setTimeout(() => {
-        window.location.href = 'workouts.html';
-    }, 1500);
+    // Update Firestore
+    firebase.firestore()
+        .collection('workouts')
+        .doc(currentWorkout.id)
+        .update({
+            completed: true,
+            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+        })
+        .then(() => {
+            // Show success state and redirect
+            setTimeout(() => {
+                window.location.href = 'workouts.html';
+            }, 1500);
+        })
+        .catch((error) => {
+            console.error('Error marking workout complete:', error);
+            completeButton.disabled = false;
+            completeButton.classList.remove('completed');
+            completeButton.textContent = 'Mark as Complete';
+        });
 }
