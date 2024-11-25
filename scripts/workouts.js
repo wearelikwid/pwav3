@@ -56,12 +56,10 @@ function createWorkoutCard(workout) {
     const card = document.createElement('div');
     card.className = 'workout-card';
 
-    // Add completed class if workout is completed
     if (workout.completed) {
         card.classList.add('completed');
     }
 
-    // Use Firestore document ID as workout ID
     card.setAttribute('data-workout-id', workout.id);
 
     card.innerHTML = `
@@ -78,6 +76,12 @@ function createWorkoutCard(workout) {
                 `<button class='button secondary' onclick='markWorkoutIncomplete("${workout.id}")'>Mark Incomplete</button>` : 
                 `<button class='button secondary' onclick='markWorkoutComplete("${workout.id}")'>Mark Complete</button>`
             }
+            <button class='button secondary edit-btn' onclick='editWorkout("${workout.id}")'>
+                <span>Edit</span>
+            </button>
+            <button class='button secondary delete-btn' onclick='deleteWorkout("${workout.id}")'>
+                <span>Delete</span>
+            </button>
         </div>
     `;
 
@@ -130,4 +134,24 @@ function markWorkoutIncomplete(workoutId) {
         .catch((error) => {
             console.error('Error marking workout incomplete:', error);
         });
+}
+
+function deleteWorkout(workoutId) {
+    if (confirm('Are you sure you want to delete this workout? This action cannot be undone.')) {
+        firebase.firestore()
+            .collection('workouts')
+            .doc(workoutId)
+            .delete()
+            .then(() => {
+                console.log('Workout successfully deleted');
+            })
+            .catch((error) => {
+                console.error('Error deleting workout:', error);
+            });
+    }
+}
+
+function editWorkout(workoutId) {
+    localStorage.setItem('editWorkoutId', workoutId);
+    window.location.href = `create-workout.html?edit=true&id=${workoutId}`;
 }
