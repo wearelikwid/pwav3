@@ -66,52 +66,48 @@ async function loadWorkoutData(workoutId) {
 }
 
 function addSection(sectionData = null) {
-    const sectionsContainer = document.getElementById('workout-sections');
-    const sectionTemplate = document.getElementById('section-template');
-    const sectionElement = document.importNode(sectionTemplate.content, true);
-
-    // Add event listeners
-    const removeButton = sectionElement.querySelector('.remove-section');
-    if (removeButton) {
-        removeButton.addEventListener('click', function(e) {
-            const section = e.target.closest('.workout-section');
-            if (sectionsContainer.children.length > 1) {
-                section.remove();
-            } else {
-                alert('You must have at least one section');
-            }
-        });
-    }
-
-    const addExerciseButton = sectionElement.querySelector('.add-exercise');
-    if (addExerciseButton) {
-        addExerciseButton.addEventListener('click', function(e) {
-            const exercisesList = e.target.previousElementSibling;
-            addExerciseToSection(exercisesList);
-        });
-    }
-
-    // Populate section data if editing
+    const template = document.getElementById('section-template');
+    const section = document.importNode(template.content, true);
+    
     if (sectionData) {
-        const sectionType = sectionElement.querySelector('.section-type');
-        if (sectionType && sectionData.type) {
-            sectionType.value = sectionData.type;
-        }
-
-        const exercisesList = sectionElement.querySelector('.exercises-list');
-        if (exercisesList && sectionData.exercises) {
+        section.querySelector('.section-type').value = sectionData.type || 'circuit';
+        if (sectionData.exercises) {
+            const exercisesList = section.querySelector('.exercises-list');
             sectionData.exercises.forEach(exercise => {
                 addExerciseToSection(exercisesList, exercise);
             });
         }
     }
 
-    sectionsContainer.appendChild(sectionElement);
+    const removeButton = section.querySelector('.remove-section');
+    removeButton.addEventListener('click', function(e) {
+        e.target.closest('.workout-section').remove();
+    });
+
+    const addExerciseButton = section.querySelector('.add-exercise');
+    addExerciseButton.addEventListener('click', function(e) {
+        const exercisesList = e.target.previousElementSibling;
+        addExerciseToSection(exercisesList);
+    });
+
+    document.getElementById('workout-sections').appendChild(section);
 }
 
 function addExerciseToSection(exercisesList, exerciseData = null) {
     const exerciseTemplate = document.getElementById('exercise-template');
     const exerciseElement = document.importNode(exerciseTemplate.content, true);
+
+    if (exerciseData) {
+        const nameInput = exerciseElement.querySelector('.exercise-name');
+        const notesInput = exerciseElement.querySelector('.exercise-notes');
+        const setsInput = exerciseElement.querySelector('.exercise-sets');
+        const repsInput = exerciseElement.querySelector('.exercise-reps');
+
+        if (nameInput) nameInput.value = exerciseData.name || '';
+        if (notesInput) notesInput.value = exerciseData.notes || '';
+        if (setsInput) setsInput.value = exerciseData.sets || '';
+        if (repsInput) repsInput.value = exerciseData.reps || '';
+    }
 
     const removeButton = exerciseElement.querySelector('.remove-exercise');
     if (removeButton) {
@@ -120,35 +116,24 @@ function addExerciseToSection(exercisesList, exerciseData = null) {
         });
     }
 
-    // Populate exercise data if editing
-    if (exerciseData) {
-        const fields = {
-            'exercise-name': exerciseData.name,
-            'exercise-notes': exerciseData.notes,
-            'exercise-reps': exerciseData.reps,
-            'exercise-rounds': exerciseData.rounds
-        };
-
-        Object.entries(fields).forEach(([className, value]) => {
-            const element = exerciseElement.querySelector(`.${className}`);
-            if (element && value) {
-                element.value = value;
-            }
-        });
-    }
-
     exercisesList.appendChild(exerciseElement);
 }
 
 async function handleFormSubmit(event) {
     event.preventDefault();
-
+    
     try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            alert('Please sign in to save the workout');
+            return;
+        }
+
         const workoutData = {
-            name: document.getElementById('workout-name').value,
-            type: document.getElementById('workout-type').value,
+            name: document.getElementById('workout-name').value.trim(),
+            type: document.getElementById('workout-type').value.trim(),
             sections: getSectionsData(),
-            userId: firebase.auth().currentUser.uid,
+            userId: user.uid,
             completed: false
         };
 
@@ -158,11 +143,10 @@ async function handleFormSubmit(event) {
         }
 
         const workoutId = event.target.getAttribute('data-workout-id');
-
+        
         if (workoutId) {
             await updateWorkout(workoutId, workoutData);
         } else {
-            workoutData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await saveWorkout(workoutData);
         }
 
@@ -171,6 +155,32 @@ async function handleFormSubmit(event) {
         console.error('Error saving workout:', error);
         alert('Error saving workout. Please try again.');
     }
+}
+
+function getSectionsData() {
+    const sections = [];
+    const sectionElements = document.querySelectorAll('.workout-section');
+
+    sectionElements.forEach(sectionElement => {
+        const exercises = [];
+        const exerciseItems = sectionElement.querySelectorAll('.exercise-item');
+
+        exerciseItems.forEach(exerciseItem => {
+            exercises.push({
+                name: exerciseItem.querySelector('.exercise-name')?.value || '',
+                notes: exerciseItem.querySelector('.exercise-notes')?.value || '',
+                sets: exerciseItem.querySelector('.exercise-sets')?.value || '',
+                reps: exerciseItem.querySelector('.exercise-reps')?.value || ''
+            });
+        });
+
+        sections.push({
+            type: sectionElement.querySelector('.section-type')?.value || '',
+            exercises: exercises.filter(e => e.name || e.notes || e.sets || e.reps)
+        });
+    });
+
+    return sections;
 }
 
 async function updateWorkout(workoutId, workoutData) {
@@ -186,31 +196,9 @@ async function updateWorkout(workoutId, workoutData) {
 async function saveWorkout(workoutData) {
     return firebase.firestore()
         .collection('workouts')
-        .add(workoutData);
-}
-
-function getSectionsData() {
-    const sections = [];
-    const sectionElements = document.querySelectorAll('.workout-section');
-
-    sectionElements.forEach(sectionElement => {
-        const exercises = [];
-        const exerciseItems = sectionElement.querySelectorAll('.exercise-item');
-
-        exerciseItems.forEach(exerciseItem => {
-            exercises.push({
-                name: exerciseItem.querySelector('.exercise-name')?.value || '',
-                notes: exerciseItem.querySelector('.exercise-notes')?.value || '',
-                reps: exerciseItem.querySelector('.exercise-reps')?.value || '',
-                rounds: exerciseItem.querySelector('.exercise-rounds')?.value || ''
-            });
+        .add({
+            ...workoutData,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-
-        sections.push({
-            type: sectionElement.querySelector('.section-type')?.value || '',
-            exercises: exercises.filter(e => e.name || e.notes || e.reps || e.rounds)
-        });
-    });
-
-    return sections;
 }
