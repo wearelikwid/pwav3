@@ -1,3 +1,9 @@
+// Utility function for error handling
+function showError(message) {
+    console.error(message);
+    alert(message); // Basic implementation - you could replace with a better UI notification
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Check if user is logged in
     firebase.auth().onAuthStateChanged((user) => {
@@ -10,10 +16,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadWorkouts(userId) {
-    // Reference to Firestore collection
     const workoutsRef = firebase.firestore().collection('workouts');
-
-    // Use onSnapshot for real-time updates
+    
     workoutsRef
         .where('userId', '==', userId)
         .orderBy('createdAt', 'desc')
@@ -27,7 +31,7 @@ function loadWorkouts(userId) {
             });
             displayWorkouts(workouts);
         }, (error) => {
-            console.error('Error loading workouts:', error);
+            showError('Error loading workouts: ' + error.message);
             displayWorkouts([]);
         });
 }
@@ -54,18 +58,18 @@ function displayWorkouts(workouts) {
 
 function createWorkoutCard(workout) {
     const card = document.createElement('div');
-    card.className = 'workout-card';
-
-    if (workout.completed) {
-        card.classList.add('completed');
-    }
-
+    card.className = `workout-card ${workout.completed ? 'completed' : ''}`;
     card.setAttribute('data-workout-id', workout.id);
 
+    // Sanitize the workout name for security
+    const sanitizedName = document.createElement('div');
+    sanitizedName.textContent = workout.name;
+    const safeName = sanitizedName.innerHTML;
+
     card.innerHTML = `
-        <h3>${workout.name}</h3>
+        <h3>${safeName}</h3>
         <div class='workout-meta'>
-            <span>${workout.type}</span>
+            <span>${workout.type || 'No type'}</span>
             ${workout.completed ? '<span class="completion-status">✓ Completed</span>' : ''}
         </div>
         <div class='workout-actions'>
@@ -102,11 +106,11 @@ function startWorkout(workoutId) {
                 localStorage.setItem('currentWorkout', JSON.stringify(workout));
                 window.location.href = 'start-workout.html';
             } else {
-                console.error('Workout not found');
+                showError('Workout not found');
             }
         })
         .catch((error) => {
-            console.error('Error starting workout:', error);
+            showError('Error starting workout: ' + error.message);
         });
 }
 
@@ -119,7 +123,7 @@ function markWorkoutComplete(workoutId) {
             completedAt: firebase.firestore.FieldValue.serverTimestamp()
         })
         .catch((error) => {
-            console.error('Error marking workout complete:', error);
+            showError('Error marking workout complete: ' + error.message);
         });
 }
 
@@ -132,7 +136,7 @@ function markWorkoutIncomplete(workoutId) {
             completedAt: null
         })
         .catch((error) => {
-            console.error('Error marking workout incomplete:', error);
+            showError('Error marking workout incomplete: ' + error.message);
         });
 }
 
@@ -146,7 +150,7 @@ function deleteWorkout(workoutId) {
                 console.log('Workout successfully deleted');
             })
             .catch((error) => {
-                console.error('Error deleting workout:', error);
+                showError('Error deleting workout: ' + error.message);
             });
     }
 }
