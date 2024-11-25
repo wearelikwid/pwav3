@@ -1,21 +1,17 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Check authentication
     firebase.auth().onAuthStateChanged(function(user) {
         if (!user) {
             window.location.href = 'auth.html';
             return;
         }
         initializeForm();
-        
-        // Check if we're in edit mode
+
         const urlParams = new URLSearchParams(window.location.search);
         const workoutId = urlParams.get('id');
-        
+
         if (workoutId) {
-            // Load workout data for editing
             loadWorkoutData(workoutId);
         } else {
-            // Add initial section for new workout
             addSection();
         }
     });
@@ -35,26 +31,33 @@ async function loadWorkoutData(workoutId) {
 
         if (doc.exists) {
             const workout = doc.data();
-            
-            // Set form fields
-            document.getElementById('workout-name').value = workout.name;
-            document.getElementById('workout-type').value = workout.type;
-            
+            const form = document.getElementById('create-workout-form');
+
+            // Set basic fields
+            document.getElementById('workout-name').value = workout.name || '';
+            document.getElementById('workout-type').value = workout.type || '';
+
             // Clear existing sections
             const sectionsContainer = document.getElementById('workout-sections');
             sectionsContainer.innerHTML = '';
-            
+
             // Add sections with exercises
-            workout.sections.forEach(section => {
-                addSection(section);
-            });
-            
-            // Update form submit button text
+            if (workout.sections && workout.sections.length > 0) {
+                workout.sections.forEach(section => {
+                    addSection(section);
+                });
+            } else {
+                addSection(); // Add at least one empty section
+            }
+
+            // Update form for edit mode
             const submitButton = form.querySelector('button[type="submit"]');
-            submitButton.textContent = 'Update Workout';
-            
-            // Store workout ID for update
+            if (submitButton) {
+                submitButton.textContent = 'Update Workout';
+            }
             form.setAttribute('data-workout-id', workoutId);
+        } else {
+            throw new Error('Workout not found');
         }
     } catch (error) {
         console.error('Error loading workout:', error);
@@ -69,30 +72,38 @@ function addSection(sectionData = null) {
 
     // Add event listeners
     const removeButton = sectionElement.querySelector('.remove-section');
-    removeButton.addEventListener('click', function(e) {
-        const section = e.target.closest('.workout-section');
-        if (sectionsContainer.children.length > 1) {
-            section.remove();
-        } else {
-            alert('You must have at least one section');
-        }
-    });
+    if (removeButton) {
+        removeButton.addEventListener('click', function(e) {
+            const section = e.target.closest('.workout-section');
+            if (sectionsContainer.children.length > 1) {
+                section.remove();
+            } else {
+                alert('You must have at least one section');
+            }
+        });
+    }
 
     const addExerciseButton = sectionElement.querySelector('.add-exercise');
-    addExerciseButton.addEventListener('click', function(e) {
-        const exercisesList = e.target.previousElementSibling;
-        addExerciseToSection(exercisesList);
-    });
+    if (addExerciseButton) {
+        addExerciseButton.addEventListener('click', function(e) {
+            const exercisesList = e.target.previousElementSibling;
+            addExerciseToSection(exercisesList);
+        });
+    }
 
-    // If editing, populate section data
+    // Populate section data if editing
     if (sectionData) {
         const sectionType = sectionElement.querySelector('.section-type');
-        sectionType.value = sectionData.type;
+        if (sectionType && sectionData.type) {
+            sectionType.value = sectionData.type;
+        }
 
         const exercisesList = sectionElement.querySelector('.exercises-list');
-        sectionData.exercises.forEach(exercise => {
-            addExerciseToSection(exercisesList, exercise);
-        });
+        if (exercisesList && sectionData.exercises) {
+            sectionData.exercises.forEach(exercise => {
+                addExerciseToSection(exercisesList, exercise);
+            });
+        }
     }
 
     sectionsContainer.appendChild(sectionElement);
@@ -103,16 +114,27 @@ function addExerciseToSection(exercisesList, exerciseData = null) {
     const exerciseElement = document.importNode(exerciseTemplate.content, true);
 
     const removeButton = exerciseElement.querySelector('.remove-exercise');
-    removeButton.addEventListener('click', function(e) {
-        e.target.closest('.exercise-item').remove();
-    });
+    if (removeButton) {
+        removeButton.addEventListener('click', function(e) {
+            e.target.closest('.exercise-item').remove();
+        });
+    }
 
-    // If editing, populate exercise data
+    // Populate exercise data if editing
     if (exerciseData) {
-        exerciseElement.querySelector('.exercise-name').value = exerciseData.name;
-        exerciseElement.querySelector('.exercise-notes').value = exerciseData.notes;
-        exerciseElement.querySelector('.exercise-reps').value = exerciseData.reps;
-        exerciseElement.querySelector('.exercise-rounds').value = exerciseData.rounds;
+        const fields = {
+            'exercise-name': exerciseData.name,
+            'exercise-notes': exerciseData.notes,
+            'exercise-reps': exerciseData.reps,
+            'exercise-rounds': exerciseData.rounds
+        };
+
+        Object.entries(fields).forEach(([className, value]) => {
+            const element = exerciseElement.querySelector(`.${className}`);
+            if (element && value) {
+                element.value = value;
+            }
+        });
     }
 
     exercisesList.appendChild(exerciseElement);
@@ -135,13 +157,11 @@ async function handleFormSubmit(event) {
             return;
         }
 
-        const workoutId = this.getAttribute('data-workout-id');
-        
+        const workoutId = event.target.getAttribute('data-workout-id');
+
         if (workoutId) {
-            // Update existing workout
             await updateWorkout(workoutId, workoutData);
         } else {
-            // Create new workout
             workoutData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await saveWorkout(workoutData);
         }
@@ -179,16 +199,16 @@ function getSectionsData() {
 
         exerciseItems.forEach(exerciseItem => {
             exercises.push({
-                name: exerciseItem.querySelector('.exercise-name').value,
-                notes: exerciseItem.querySelector('.exercise-notes').value,
-                reps: exerciseItem.querySelector('.exercise-reps').value,
-                rounds: exerciseItem.querySelector('.exercise-rounds').value
+                name: exerciseItem.querySelector('.exercise-name')?.value || '',
+                notes: exerciseItem.querySelector('.exercise-notes')?.value || '',
+                reps: exerciseItem.querySelector('.exercise-reps')?.value || '',
+                rounds: exerciseItem.querySelector('.exercise-rounds')?.value || ''
             });
         });
 
         sections.push({
-            type: sectionElement.querySelector('.section-type').value,
-            exercises: exercises
+            type: sectionElement.querySelector('.section-type')?.value || '',
+            exercises: exercises.filter(e => e.name || e.notes || e.reps || e.rounds)
         });
     });
 
